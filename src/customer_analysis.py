@@ -729,6 +729,10 @@ def _format_excel(writer: pd.ExcelWriter, sheet_name: str, df: pd.DataFrame, fre
         elif col_name == 'date' or col_name.endswith('_month') or col_name.endswith('_date'):
             num_format = 'yyyy-mm-dd'
 
+        # Gap columns: Number with 1 decimal place
+        elif 'gap' in col_name:
+            num_format = '0.0'
+
         # Revenue columns: Accounting format with 0 decimals
         elif 'revenue' in col_name or 'total_trailing' in col_name or col_name.startswith('total_'):
             num_format = '_($* #,##0_);_($* (#,##0);_($* "-"_);_(@_)'
