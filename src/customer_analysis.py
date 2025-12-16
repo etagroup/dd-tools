@@ -438,14 +438,6 @@ def build_customer_summary(df_long: pd.DataFrame) -> pd.DataFrame:
     # Ensure consistent sorting
     df_long = df_long.sort_values(["customer", "date"]).copy()
 
-    # Map standardized customer -> most common raw display name
-    display_name = (
-        df_long[["customer", "customer_raw"]]
-        .dropna()
-        .groupby("customer")["customer_raw"]
-        .agg(lambda x: x.value_counts().idxmax())
-    )
-
     # Monthly matrix
     monthly_matrix = (
         df_long.pivot_table(index="date", columns="customer", values="revenue", aggfunc="sum", fill_value=0.0)
@@ -519,10 +511,6 @@ def build_customer_summary(df_long: pd.DataFrame) -> pd.DataFrame:
         top10_counts.loc[top10] += 1
     top10_persistence = top10_counts / max(len(valid_ttm_dates), 1)
 
-    # Map customer names, falling back to the normalized name if no display name found
-    customer_display_mapped = lifetime_rev.index.to_series().map(display_name)
-    customer_display_filled = customer_display_mapped.fillna(lifetime_rev.index.to_series()).values
-
     # Reindex all metrics to match lifetime_rev index
     is_repeat_reindexed = is_repeat.reindex(lifetime_rev.index)
     # Use where to avoid fillna downcasting warning
@@ -530,7 +518,6 @@ def build_customer_summary(df_long: pd.DataFrame) -> pd.DataFrame:
 
     summary = pd.DataFrame({
         "customer": lifetime_rev.index,
-        "customer_display": customer_display_filled,
         "lifetime_revenue": lifetime_rev.values,
         "ttm_revenue_last": ttm_last.reindex(lifetime_rev.index).values,
         "t24m_revenue_last": t24_last.reindex(lifetime_rev.index).values,
@@ -754,17 +741,17 @@ def _add_customer_segmentation_columns(writer: pd.ExcelWriter, df_long: pd.DataF
     most_recent_date_str = most_recent_month.strftime('%Y-%m-%d')
 
     # Find column indices (1-based) for existing columns
-    # Expected columns: customer, customer_display, lifetime_revenue, ttm_revenue_last, t24m_revenue_last,
+    # Expected columns: customer, lifetime_revenue, ttm_revenue_last, t24m_revenue_last,
     # t36m_revenue_last, first_purchase_month, last_purchase_month, active_months, active_quarters,
     # active_years, tenure_months, activity_ratio, avg_gap_months, max_gap_months, reactivations,
     # is_repeat_customer, peak_ttm_share, top10_ttm_persistence
 
     # Column positions (A=1, B=2, etc.)
-    col_last_purchase = 8  # last_purchase_month is column H
-    col_ttm = 4  # ttm_revenue_last is column D
-    col_lifetime = 3  # lifetime_revenue is column C
-    col_tenure = 12  # tenure_months is column L
-    col_peak_share = 18  # peak_ttm_share is column R
+    col_last_purchase = 7  # last_purchase_month is column G
+    col_ttm = 3  # ttm_revenue_last is column C
+    col_lifetime = 2  # lifetime_revenue is column B
+    col_tenure = 11  # tenure_months is column K
+    col_peak_share = 17  # peak_ttm_share is column Q
 
     # Add new column headers
     num_rows = ws.max_row
@@ -1024,8 +1011,10 @@ def write_analysis_workbook(df_long: pd.DataFrame, output_path: Path) -> None:
         _add_customer_segmentation_columns(writer, df_long)
 
         # Keep the long data so future users can extend analysis
-        df_long.sort_values(["date", "customer"]).to_excel(writer, sheet_name="Monthly_Long", index=False)
-        _format_excel(writer, "Monthly_Long", df_long)
+        # Exclude customer_raw to keep only the normalized/master customer name
+        df_long_output = df_long.sort_values(["date", "customer"]).drop(columns=["customer_raw"], errors="ignore")
+        df_long_output.to_excel(writer, sheet_name="Monthly_Long", index=False)
+        _format_excel(writer, "Monthly_Long", df_long_output)
 
         monthly_matrix.to_excel(writer, sheet_name="Monthly_Matrix")
         _format_excel(writer, "Monthly_Matrix", monthly_matrix.reset_index())
