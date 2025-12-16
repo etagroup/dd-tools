@@ -15,7 +15,7 @@ See [INSTRUCTIONS.md](INSTRUCTIONS.md) for detailed workflow documentation.
 ### 1. Generate Initial Analysis
 
 ```bash
-python src/generate_repeat_customer_analysis.py \
+python src/customer_analysis.py \
   --input "path/to/Monthly Customer Revenue.xlsx" \
   --output output/customers.xlsx
 ```
@@ -29,7 +29,7 @@ python src/generate_repeat_customer_analysis.py \
 Edit `customer_master.xlsx` to merge duplicate customer names, then regenerate:
 
 ```bash
-python src/generate_repeat_customer_analysis.py \
+python src/customer_analysis.py \
   --input "path/to/Monthly Customer Revenue.xlsx" \
   --output output/customers.xlsx \
   --master output/customer_master.xlsx

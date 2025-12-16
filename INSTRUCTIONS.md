@@ -9,7 +9,7 @@ This tool analyzes customer purchase patterns from monthly revenue data and help
 Run the script with your input data:
 
 ```bash
-python3 src/generate_repeat_customer_analysis.py \
+python3 src/customer_analysis.py \
   --input "path/to/your/Monthly Customer Revenue.xlsx" \
   --output output/customers.xlsx
 ```
@@ -67,7 +67,7 @@ SUN LIFE ASSURANCE COMPANY OF CANADA     SUN LIFE ASSURANCE COMPANY OF CANADA   
 After editing and saving `customer_master.xlsx`, regenerate the analysis with your mappings:
 
 ```bash
-python3 src/generate_repeat_customer_analysis.py \
+python3 src/customer_analysis.py \
   --input "path/to/your/Monthly Customer Revenue.xlsx" \
   --output output/customers_consolidated.xlsx \
   --master output/customer_master.xlsx
