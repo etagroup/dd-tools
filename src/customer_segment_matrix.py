@@ -55,6 +55,17 @@ def build_segment_matrix(input_file: str) -> tuple:
         margins_name='Total'
     )
 
+    # Reorder columns: Active, Inactive, Churned, Total
+    col_order = ['Active', 'Inactive', 'Churned', 'Total']
+    counts = counts[[c for c in col_order if c in counts.columns]]
+    revenue = revenue[[c for c in col_order if c in revenue.columns]]
+
+    # Clean up index/column names
+    counts.index.name = None
+    counts.columns.name = None
+    revenue.index.name = None
+    revenue.columns.name = None
+
     return counts, revenue, data_start, data_end
 
 
@@ -77,9 +88,6 @@ def main(input_file: str):
     print(counts.to_string())
 
     print("\n\nLIFETIME REVENUE:")
-    print(revenue.to_string())
-
-    print("\n\nLIFETIME REVENUE (Formatted):")
     revenue_formatted = revenue.map(format_currency)
     print(revenue_formatted.to_string())
 
