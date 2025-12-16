@@ -715,6 +715,87 @@ def _format_excel(writer: pd.ExcelWriter, sheet_name: str, df: pd.DataFrame, fre
         ws.column_dimensions[get_column_letter(col_idx)].width = width  # type: ignore[attr-defined]
 
 
+def _add_customer_segmentation_columns(writer: pd.ExcelWriter, df_long: pd.DataFrame) -> None:
+    """Add formula-based segmentation columns to Customer_Summary sheet."""
+    from openpyxl.utils import get_column_letter
+
+    ws = writer.sheets["Customer_Summary"]
+
+    # Get the most recent month from the data
+    most_recent_month = pd.to_datetime(df_long['date']).max()
+    most_recent_date_str = most_recent_month.strftime('%Y-%m-%d')
+
+    # Find column indices (1-based) for existing columns
+    # Expected columns: customer, customer_display, lifetime_revenue, ttm_revenue_last, t24m_revenue_last,
+    # t36m_revenue_last, first_purchase_month, last_purchase_month, active_months, active_quarters,
+    # active_years, tenure_months, activity_ratio, avg_gap_months, max_gap_months, reactivations,
+    # is_repeat_customer, peak_ttm_share, top10_ttm_persistence
+
+    # Column positions (A=1, B=2, etc.)
+    col_last_purchase = 8  # last_purchase_month is column H
+    col_ttm = 4  # ttm_revenue_last is column D
+    col_lifetime = 3  # lifetime_revenue is column C
+    col_tenure = 12  # tenure_months is column L
+    col_peak_share = 18  # peak_ttm_share is column R
+
+    # Add new column headers
+    num_rows = ws.max_row
+    next_col = ws.max_column + 1
+
+    headers = [
+        "months_since_last_purchase",
+        "status",
+        "is_high_value",
+        "segment"
+    ]
+
+    for i, header in enumerate(headers):
+        col_letter = get_column_letter(next_col + i)
+        ws[f"{col_letter}1"] = header
+        ws.column_dimensions[col_letter].width = 20  # type: ignore[attr-defined]
+
+    # Add formulas for each data row (starting at row 2)
+    for row in range(2, num_rows + 1):
+        col_idx = next_col
+
+        # Column 1: months_since_last_purchase
+        # =DATEDIF(H2, DATE(2025,9,1), "M")
+        last_purchase_cell = f"{get_column_letter(col_last_purchase)}{row}"
+        formula1 = f'=DATEDIF({last_purchase_cell},DATE({most_recent_month.year},{most_recent_month.month},1),"M")'
+        ws[f"{get_column_letter(col_idx)}{row}"] = formula1
+
+        col_idx += 1
+
+        # Column 2: status (Active/Inactive/Churned)
+        # =IF(T2<=6,"Active",IF(T2<=18,"Inactive","Churned"))
+        months_since_col = get_column_letter(col_idx - 1)
+        formula2 = f'=IF({months_since_col}{row}<=6,"Active",IF({months_since_col}{row}<=18,"Inactive","Churned"))'
+        ws[f"{get_column_letter(col_idx)}{row}"] = formula2
+
+        col_idx += 1
+
+        # Column 3: is_high_value
+        # =OR(C2>=1000000,R2>=0.02)
+        lifetime_col = get_column_letter(col_lifetime)
+        peak_share_col = get_column_letter(col_peak_share)
+        formula3 = f'=OR({lifetime_col}{row}>=1000000,{peak_share_col}{row}>=0.02)'
+        ws[f"{get_column_letter(col_idx)}{row}"] = formula3
+
+        col_idx += 1
+
+        # Column 4: segment (for active customers only)
+        # =IF(U2="Active",IF(AND(D2>=2000000,OR(L2>=36,C2>=5000000)),"Strategic",IF(D2>=1000000,"High Value","Mid Value")),"")
+        status_col = get_column_letter(next_col + 1)  # status column
+        ttm_col = get_column_letter(col_ttm)
+        tenure_col = get_column_letter(col_tenure)
+        lifetime_col = get_column_letter(col_lifetime)
+        formula4 = f'=IF({status_col}{row}="Active",IF(AND({ttm_col}{row}>=2000000,OR({tenure_col}{row}>=36,{lifetime_col}{row}>=5000000)),"Strategic",IF({ttm_col}{row}>=1000000,"High Value","Mid Value")),"")'
+        ws[f"{get_column_letter(col_idx)}{row}"] = formula4
+
+    # Update autofilter to include new columns
+    ws.auto_filter.ref = ws.dimensions  # type: ignore[attr-defined]
+
+
 
 def generate_customer_master_file(df_long: pd.DataFrame, output_path: Path) -> pd.DataFrame:
     """
@@ -911,6 +992,8 @@ def write_analysis_workbook(df_long: pd.DataFrame, output_path: Path) -> None:
         # Customer summary first
         cust_summary.to_excel(writer, sheet_name="Customer_Summary", index=False)
         _format_excel(writer, "Customer_Summary", cust_summary)
+        # Add segmentation columns with formulas
+        _add_customer_segmentation_columns(writer, df_long)
 
         # Keep the long data so future users can extend analysis
         df_long.sort_values(["date", "customer"]).to_excel(writer, sheet_name="Monthly_Long", index=False)
@@ -921,9 +1004,6 @@ def write_analysis_workbook(df_long: pd.DataFrame, output_path: Path) -> None:
 
         rolling_conc.to_excel(writer, sheet_name="Rolling_Concentration", index=False)
         _format_excel(writer, "Rolling_Concentration", rolling_conc)
-
-        cust_summary.to_excel(writer, sheet_name="Customer_Summary", index=False)
-        _format_excel(writer, "Customer_Summary", cust_summary)
 
         top25_lifetime.to_excel(writer, sheet_name="Top25_Lifetime", index=False)
         _format_excel(writer, "Top25_Lifetime", top25_lifetime)
