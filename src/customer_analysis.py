@@ -1013,8 +1013,8 @@ def write_analysis_workbook(df_long: pd.DataFrame, output_path: Path) -> None:
         # Keep the long data so future users can extend analysis
         # Exclude customer_raw to keep only the normalized/master customer name
         df_long_output = df_long.sort_values(["date", "customer"]).drop(columns=["customer_raw"], errors="ignore")
-        df_long_output.to_excel(writer, sheet_name="Monthly_Long", index=False)
-        _format_excel(writer, "Monthly_Long", df_long_output)
+        df_long_output.to_excel(writer, sheet_name="Revenue_Detail", index=False)
+        _format_excel(writer, "Revenue_Detail", df_long_output)
 
         monthly_matrix.to_excel(writer, sheet_name="Monthly_Matrix")
         _format_excel(writer, "Monthly_Matrix", monthly_matrix.reset_index())
