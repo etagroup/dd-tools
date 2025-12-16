@@ -41,7 +41,7 @@ Raw Input Excel
 ## Setup
 
 ```bash
-./py-setup.sh
+./setup.sh
 # or manually:
 pip install pandas openpyxl numpy
 ```
