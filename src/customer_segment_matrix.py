@@ -18,11 +18,11 @@ def build_segment_matrix(input_file: str) -> tuple:
     # Read Customer_Summary sheet
     df = pd.read_excel(input_file, sheet_name="Customer_Summary")
 
-    # Read Revenue_Detail sheet to determine data range
-    df_detail = pd.read_excel(input_file, sheet_name="Revenue_Detail")
-    df_detail['date'] = pd.to_datetime(df_detail['date'])
-    data_start = df_detail['date'].min()
-    data_end = df_detail['date'].max()
+    # Read Metadata sheet for date range
+    metadata = pd.read_excel(input_file, sheet_name="Metadata")
+    metadata_dict = dict(zip(metadata["property"], metadata["value"]))
+    data_start = pd.to_datetime(metadata_dict["data_start_date"])
+    data_end = pd.to_datetime(metadata_dict["data_end_date"])
 
     # Use the most recent month in the data as the reference date
     reference_date = data_end

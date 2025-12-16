@@ -8,40 +8,82 @@ Analyzes customer purchase patterns from monthly revenue data, focusing on **rep
 - Rolling concentration metrics (TTM, 24M, 36M)
 - Customer-level behavioral metrics (tenure, gaps, reactivations)
 
+## Architecture
+
+The analysis is split into three phases:
+
+1. **Preparation** (monthly) - Data loading, normalization, customer master management
+2. **Analytics** (as needed) - Summaries, rolling metrics, concentration analysis
+3. **Reporting** (frequent) - Console reports from analytics workbook
+
+```
+Raw Input Excel
+      │
+      ▼
+┌─────────────────┐
+│   prepare.py    │ ──► {basename}.prepared.xlsx
+│                 │ ──► {basename}.customers.xlsx
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│  analytics.py   │ ──► customer_analytics.xlsx
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│    Reports      │ ──► Console output
+│ - high_value    │
+│ - segment_matrix│
+└─────────────────┘
+```
+
 ## Quick Start
 
 See [INSTRUCTIONS.md](INSTRUCTIONS.md) for detailed workflow documentation.
 
-### 1. Generate Initial Analysis
+### 1. Prepare Data
 
 ```bash
-python src/customer_analysis.py \
-  --input "path/to/Monthly Customer Revenue.xlsx" \
-  --output output/customer_analysis.xlsx
+python src/prepare.py --input "4.0.5 Financial - Month-wise Customer Revenue.xlsx"
 ```
 
 **Output:**
-- `customer_analysis.xlsx` - Analysis workbook
-- `customer_master.xlsx` - Editable duplicate consolidation template
+- `4.0.5 Financial...prepared.xlsx` - Flattened, normalized revenue data
+- `4.0.5 Financial...customers.xlsx` - Customer master with duplicate detection
 
-### 2. Consolidate Duplicates (Optional)
+### 2. Review Customer Master (Optional)
 
-Edit `customer_master.xlsx` to merge duplicate customer names, then regenerate:
+Edit the `.customers.xlsx` file to consolidate duplicates, then re-run prepare with the master:
 
 ```bash
-python src/customer_analysis.py \
-  --input "path/to/Monthly Customer Revenue.xlsx" \
-  --output output/customer_analysis.xlsx \
-  --master output/customer_master.xlsx
+python src/prepare.py \
+  --input "4.0.5 Financial - Month-wise Customer Revenue.xlsx" \
+  --master "4.0.4 Financial...customers.xlsx"
 ```
 
-## Analysis Workbook Contents
+### 3. Generate Analytics
 
-- **Customer_Summary** – customer-level metrics (tenure, gaps, reactivations, peak concentration)
-- **Revenue_Detail** – long-format month-by-customer revenue
-- **Monthly_Matrix** – pivoted matrix (months × customers)
-- **Rolling_Concentration** – time series of top customer concentration (TTM/24M/36M, Top1/5/10 share)
-- **Top25_Lifetime** / **Top25_TTM** / **Top25_PeakTTMShare** – ranked customer lists
+```bash
+python src/analytics.py \
+  --input "4.0.5 Financial...prepared.xlsx" \
+  --output "customer_analytics.xlsx"
+```
+
+### 4. Run Reports
+
+```bash
+python src/high_value_report.py customer_analytics.xlsx
+python src/customer_segment_matrix.py customer_analytics.xlsx
+```
+
+## Analytics Workbook Contents
+
+- **Metadata** - Data date range and generation timestamp
+- **Customer_Summary** - Customer-level metrics (tenure, gaps, reactivations, peak concentration)
+- **Monthly_Matrix** - Pivoted matrix (months x customers)
+- **Rolling_Concentration** - Time series of top customer concentration (TTM/24M/36M, Top1/5/10 share)
+- **Top25_Lifetime** / **Top25_TTM** / **Top25_PeakTTMShare** - Ranked customer lists
 
 ## Duplicate Detection
 
@@ -53,7 +95,7 @@ The script automatically detects potential duplicate customer names using:
 ## Setup
 
 ```bash
-pip install -r src/requirements.txt
+pip install pandas openpyxl numpy
 ```
 
 **Requirements:** Python 3.7+, pandas, openpyxl, numpy
@@ -64,4 +106,3 @@ pip install -r src/requirements.txt
 - Each sheet contains a "Name of Customer" header row with month columns
 - Customer names are auto-normalized (uppercase + whitespace collapse)
 - Data automatically trimmed to last month with non-zero revenue
-
