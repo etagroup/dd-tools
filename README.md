@@ -95,8 +95,8 @@ Customers with no detected duplicates (alphabetically sorted for reference).
 To merge duplicates, edit the `customer_master` column to use the same name for both entries:
 ```
 customer_normalized              customer_master                   confidence
-ONTARIO POWER GENERATION    →   ONTARIO POWER GENERATION INC     HIGH
-ONTARIO POWER GENERATION INC    ONTARIO POWER GENERATION INC     HIGH
+ACME                        →   ACME INC                         HIGH
+ACME INC                        ACME INC                         HIGH
 ```
 
 To keep separate, leave the `customer_master` column as-is.
