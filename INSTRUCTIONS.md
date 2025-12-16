@@ -11,11 +11,11 @@ Run the script with your input data:
 ```bash
 python3 src/customer_analysis.py \
   --input "path/to/your/Monthly Customer Revenue.xlsx" \
-  --output output/customers.xlsx
+  --output output/customer_analysis.xlsx
 ```
 
 **Output:**
-- `output/customers.xlsx` - Analysis workbook with unconsolidated customer names
+- `output/customer_analysis.xlsx` - Analysis workbook with unconsolidated customer names
 - `output/customer_master.xlsx` - **Editable mapping template** for consolidating duplicates
 
 ## Step 2: Review and Consolidate Duplicates
@@ -69,12 +69,12 @@ After editing and saving `customer_master.xlsx`, regenerate the analysis with yo
 ```bash
 python3 src/customer_analysis.py \
   --input "path/to/your/Monthly Customer Revenue.xlsx" \
-  --output output/customers_consolidated.xlsx \
+  --output output/customer_analysis.xlsx \
   --master output/customer_master.xlsx
 ```
 
 **Result:**
-- `output/customers_consolidated.xlsx` - Analysis with your consolidated customer names
+- `output/customer_analysis.xlsx` - Analysis with your consolidated customer names
 - Your edited `customer_master.xlsx` is preserved (not overwritten)
 
 All metrics (lifetime revenue, TTM, concentration, etc.) will now reflect the consolidated entities.

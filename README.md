@@ -17,11 +17,11 @@ See [INSTRUCTIONS.md](INSTRUCTIONS.md) for detailed workflow documentation.
 ```bash
 python src/customer_analysis.py \
   --input "path/to/Monthly Customer Revenue.xlsx" \
-  --output output/customers.xlsx
+  --output output/customer_analysis.xlsx
 ```
 
 **Output:**
-- `customers.xlsx` - Analysis workbook
+- `customer_analysis.xlsx` - Analysis workbook
 - `customer_master.xlsx` - Editable duplicate consolidation template
 
 ### 2. Consolidate Duplicates (Optional)
@@ -31,7 +31,7 @@ Edit `customer_master.xlsx` to merge duplicate customer names, then regenerate:
 ```bash
 python src/customer_analysis.py \
   --input "path/to/Monthly Customer Revenue.xlsx" \
-  --output output/customers.xlsx \
+  --output output/customer_analysis.xlsx \
   --master output/customer_master.xlsx
 ```
 

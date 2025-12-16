@@ -698,8 +698,9 @@ def build_customer_master(df_long: pd.DataFrame) -> pd.DataFrame:
 
 
 def _format_excel(writer: pd.ExcelWriter, sheet_name: str, df: pd.DataFrame, freeze_panes: Tuple[int, int] = (1, 0)) -> None:
-    """Apply lightweight formatting via openpyxl (freeze header row, autofilter)."""
+    """Apply lightweight formatting via openpyxl (freeze header row, autofilter, number formats)."""
     from openpyxl.utils import get_column_letter
+    from openpyxl.styles import numbers
 
     ws = writer.sheets[sheet_name]
     ws.freeze_panes = ws.cell(row=freeze_panes[0] + 1, column=freeze_panes[1] + 1)  # type: ignore[attr-defined]
@@ -707,12 +708,35 @@ def _format_excel(writer: pd.ExcelWriter, sheet_name: str, df: pd.DataFrame, fre
 
     # Basic column width auto-fit (capped); only scan the first ~200 rows for speed
     for col_idx, col in enumerate(df.columns, start=1):
+        col_letter = get_column_letter(col_idx)
+        col_name = str(col).lower()
+
         try:
             max_len = max([len(str(col))] + [len(str(x)) for x in df[col].head(200).tolist()])
         except Exception:
             max_len = len(str(col))
         width = min(max(10, max_len + 2), 45)
-        ws.column_dimensions[get_column_letter(col_idx)].width = width  # type: ignore[attr-defined]
+        ws.column_dimensions[col_letter].width = width  # type: ignore[attr-defined]
+
+        # Apply number formatting based on column name
+        num_format = None
+
+        # Percentage/share/ratio columns: Percentage with 0 decimals (check first to avoid conflicts)
+        if 'share' in col_name or 'ratio' in col_name or 'persistence' in col_name:
+            num_format = '0%'
+
+        # Date columns: YYYY-MM-DD format (specific date column names only)
+        elif col_name == 'date' or col_name.endswith('_month') or col_name.endswith('_date'):
+            num_format = 'yyyy-mm-dd'
+
+        # Revenue columns: Accounting format with 0 decimals
+        elif 'revenue' in col_name or 'total_trailing' in col_name or col_name.startswith('total_'):
+            num_format = '_($* #,##0_);_($* (#,##0);_($* "-"_);_(@_)'
+
+        # Apply the format to all data cells in this column (skip header row)
+        if num_format:
+            for row in range(2, ws.max_row + 1):
+                ws[f'{col_letter}{row}'].number_format = num_format  # type: ignore[attr-defined]
 
 
 def _add_customer_segmentation_columns(writer: pd.ExcelWriter, df_long: pd.DataFrame) -> None:
