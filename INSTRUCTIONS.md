@@ -84,7 +84,7 @@ All metrics (lifetime revenue, TTM, concentration, etc.) will now reflect the co
 The output workbook contains these sheets:
 
 1. **Customer_Summary** - Customer-level metrics (tenure, gaps, reactivations, etc.)
-2. **Monthly_Long** - Raw monthly revenue data
+2. **Revenue_Detail** - Raw monthly revenue data
 3. **Monthly_Matrix** - Pivot table of customers × months
 4. **Rolling_Concentration** - Time series of top customer concentration (TTM, 24M, 36M)
 5. **Top25_Lifetime** - Top 25 customers by lifetime revenue

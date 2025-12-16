@@ -38,7 +38,7 @@ python src/customer_analysis.py \
 ## Analysis Workbook Contents
 
 - **Customer_Summary** – customer-level metrics (tenure, gaps, reactivations, peak concentration)
-- **Monthly_Long** – long-format month-by-customer revenue
+- **Revenue_Detail** – long-format month-by-customer revenue
 - **Monthly_Matrix** – pivoted matrix (months × customers)
 - **Rolling_Concentration** – time series of top customer concentration (TTM/24M/36M, Top1/5/10 share)
 - **Top25_Lifetime** / **Top25_TTM** / **Top25_PeakTTMShare** – ranked customer lists
