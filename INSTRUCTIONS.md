@@ -16,7 +16,7 @@ The analysis is split into three phases:
    - Calculate rolling concentration
    - Create analytics workbook
 
-3. **Reporting** (`high_value_report.py`, `customer_segment_matrix.py`) - Run frequently
+3. **Reporting** (`customer_churn_report.py`, `customer_segment_matrix.py`) - Run frequently
    - Generate console reports from analytics workbook
 
 ## Quick Start
@@ -97,8 +97,8 @@ python src/analytics.py \
 Generate reports from the analytics workbook:
 
 ```bash
-# High-value customer report
-python src/high_value_report.py customer_analytics.xlsx
+# Customer churn report (--high-value default, or --low-value, --all)
+python src/customer_churn_report.py customer_analytics.xlsx
 
 # Customer segment matrix (3x2: Status x Value)
 python src/customer_segment_matrix.py customer_analytics.xlsx

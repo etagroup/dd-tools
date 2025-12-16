@@ -33,7 +33,7 @@ Raw Input Excel
          ▼
 ┌─────────────────┐
 │    Reports      │ ──► Console output
-│ - high_value    │
+│ - churn_report  │
 │ - segment_matrix│
 └─────────────────┘
 ```
@@ -73,7 +73,7 @@ python src/analytics.py \
 ### 4. Run Reports
 
 ```bash
-python src/high_value_report.py customer_analytics.xlsx
+python src/customer_churn_report.py customer_analytics.xlsx
 python src/customer_segment_matrix.py customer_analytics.xlsx
 ```
 
