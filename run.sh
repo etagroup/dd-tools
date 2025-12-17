@@ -14,6 +14,7 @@ usage() {
 Usage: ./run.sh <command> [options]
 
 Commands:
+  all               Run full pipeline (prepare → analytics)
   prepare-customers Create/update customer master from revenue data
   prepare-revdata   Flatten revenue data and apply customer mappings
   run-analytics     Generate analytics workbook from prepared data
@@ -23,6 +24,101 @@ Commands:
 Run './run.sh <command> --help' for command-specific options.
 EOF
     exit 1
+}
+
+show_all_help() {
+    cat <<EOF
+Usage: ./run.sh all --input <file> [options]
+
+Runs the full pipeline: prepare-customers → prepare-revdata → run-analytics
+
+Options:
+  --input <file>     Raw revenue Excel file (required)
+  --existing <file>  Existing customer master (auto-detects {outdir}/customers.xlsx)
+  --outdir <dir>     Output directory (default: current dir)
+  --merge            Auto-apply HIGH confidence consolidations
+  --reports          Also generate PDF reports
+  --charts           Also generate PNG charts
+
+Output: {outdir}/customers.xlsx, revdata.xlsx, analytics.xlsx
+EOF
+}
+
+cmd_all() {
+    local input="" existing="" outdir="." merge_flag="" do_reports="" do_charts=""
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --input) [ -z "${2:-}" ] && echo "Error: --input requires a value" && echo "" && show_all_help && exit 1; input="$2"; shift 2 ;;
+            --existing) [ -z "${2:-}" ] && echo "Error: --existing requires a value" && echo "" && show_all_help && exit 1; existing="$2"; shift 2 ;;
+            --outdir) [ -z "${2:-}" ] && echo "Error: --outdir requires a value" && echo "" && show_all_help && exit 1; outdir="$2"; shift 2 ;;
+            --merge) merge_flag="--merge"; shift ;;
+            --reports) do_reports="yes"; shift ;;
+            --charts) do_charts="yes"; shift ;;
+            --help) show_all_help; exit 0 ;;
+            *) echo "Unknown option: $1"; echo ""; show_all_help; exit 1 ;;
+        esac
+    done
+
+    if [ -z "$input" ]; then
+        echo "Error: --input is required"
+        echo ""
+        show_all_help
+        exit 1
+    fi
+
+    mkdir -p "$outdir"
+
+    # Auto-detect existing customer master if not specified
+    if [ -z "$existing" ]; then
+        auto_existing="$outdir/customers.xlsx"
+        if [ -f "$auto_existing" ]; then
+            existing="$auto_existing"
+            echo "Auto-detected existing customer master: $existing"
+        fi
+    fi
+
+    echo ""
+    echo "=== FULL PIPELINE ==="
+    echo "  Input: $input"
+    echo "  Output: $outdir/"
+    [ -n "$existing" ] && echo "  Existing master: $existing"
+    echo ""
+
+    # Step 1: prepare-customers
+    echo "--- Step 1: Preparing customer master ---"
+    cust_args=(--input "$input" --outdir "$outdir")
+    [ -n "$existing" ] && cust_args+=(--existing "$existing")
+    [ -n "$merge_flag" ] && cust_args+=($merge_flag)
+    cmd_prepare_customers "${cust_args[@]}"
+    echo ""
+
+    # Step 2: prepare-revdata
+    echo "--- Step 2: Preparing revenue data ---"
+    cmd_prepare_data --input "$input" --customers "$outdir/customers.xlsx" --outdir "$outdir"
+    echo ""
+
+    # Step 3: run-analytics
+    echo "--- Step 3: Generating analytics ---"
+    cmd_analytics --revdata "$outdir/revdata.xlsx" --outdir "$outdir"
+    echo ""
+
+    # Optional: reports
+    if [ -n "$do_reports" ]; then
+        echo "--- Step 4: Generating reports ---"
+        cmd_reports --analytics "$outdir/analytics.xlsx" --outdir "$outdir" --pdf --all
+        echo ""
+    fi
+
+    # Optional: charts
+    if [ -n "$do_charts" ]; then
+        echo "--- Step 5: Generating charts ---"
+        cmd_charts --analytics "$outdir/analytics.xlsx" --outdir "$outdir"
+        echo ""
+    fi
+
+    echo "=== PIPELINE COMPLETE ==="
+    echo "Output files in: $outdir/"
 }
 
 show_prepare_customers_help() {
@@ -283,6 +379,7 @@ command="$1"
 shift
 
 case "$command" in
+    all) cmd_all "$@" ;;
     prepare-customers) cmd_prepare_customers "$@" ;;
     prepare-revdata) cmd_prepare_data "$@" ;;
     run-analytics) cmd_analytics "$@" ;;
