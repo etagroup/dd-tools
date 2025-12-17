@@ -14,7 +14,7 @@ usage() {
 Usage: ./run.sh <command> [options]
 
 Commands:
-  prepare-customer  Create/update customer master from revenue data
+  prepare-customers Create/update customer master from revenue data
   prepare-revdata   Flatten revenue data and apply customer mappings
   run-analytics     Generate analytics workbook from prepared data
   gen-reports       Generate console or PDF reports
@@ -25,13 +25,13 @@ EOF
     exit 1
 }
 
-show_prepare_customer_help() {
+show_prepare_customers_help() {
     cat <<EOF
-Usage: ./run.sh prepare-customer --input <file> [options]
+Usage: ./run.sh prepare-customers --input <file> [options]
 
 Options:
   --input <file>     Raw revenue Excel file (required)
-  --current <file>   Existing customer master to update
+  --existing <file>  Existing customer master to update
   --merge            Auto-apply HIGH confidence consolidations
   --nomerge          Just flag duplicates (default)
   --outdir <dir>     Output directory (default: current dir)
@@ -40,25 +40,25 @@ Output: {outdir}/customers.xlsx
 EOF
 }
 
-cmd_prepare_customer() {
-    local input="" current="" outdir="." merge_flag=""
+cmd_prepare_customers() {
+    local input="" existing="" outdir="." merge_flag=""
 
     while [[ $# -gt 0 ]]; do
         case $1 in
-            --input) [ -z "${2:-}" ] && echo "Error: --input requires a value" && echo "" && show_prepare_customer_help && exit 1; input="$2"; shift 2 ;;
-            --current) [ -z "${2:-}" ] && echo "Error: --current requires a value" && echo "" && show_prepare_customer_help && exit 1; current="$2"; shift 2 ;;
+            --input) [ -z "${2:-}" ] && echo "Error: --input requires a value" && echo "" && show_prepare_customers_help && exit 1; input="$2"; shift 2 ;;
+            --existing) [ -z "${2:-}" ] && echo "Error: --existing requires a value" && echo "" && show_prepare_customers_help && exit 1; existing="$2"; shift 2 ;;
             --merge) merge_flag="--merge"; shift ;;
             --nomerge) merge_flag=""; shift ;;
-            --outdir) [ -z "${2:-}" ] && echo "Error: --outdir requires a value" && echo "" && show_prepare_customer_help && exit 1; outdir="$2"; shift 2 ;;
-            --help) show_prepare_customer_help; exit 0 ;;
-            *) echo "Unknown option: $1"; echo ""; show_prepare_customer_help; exit 1 ;;
+            --outdir) [ -z "${2:-}" ] && echo "Error: --outdir requires a value" && echo "" && show_prepare_customers_help && exit 1; outdir="$2"; shift 2 ;;
+            --help) show_prepare_customers_help; exit 0 ;;
+            *) echo "Unknown option: $1"; echo ""; show_prepare_customers_help; exit 1 ;;
         esac
     done
 
     if [ -z "$input" ]; then
         echo "Error: --input is required"
         echo ""
-        show_prepare_customer_help
+        show_prepare_customers_help
         exit 1
     fi
 
@@ -67,12 +67,12 @@ cmd_prepare_customer() {
     mkdir -p "$outdir"
 
     args=(--input "$input" --output "$output")
-    [ -n "$current" ] && args+=(--master "$current")
+    [ -n "$existing" ] && args+=(--master "$existing")
     [ -n "$merge_flag" ] && args+=($merge_flag)
 
     echo "Creating customer master..."
     echo "  Input: $input"
-    [ -n "$current" ] && echo "  Current master: $current"
+    [ -n "$existing" ] && echo "  Existing master: $existing"
     echo "  Output: $output"
 
     python "$SRC_DIR/prepare.py" "${args[@]}" --customers-only
@@ -283,7 +283,7 @@ command="$1"
 shift
 
 case "$command" in
-    prepare-customer) cmd_prepare_customer "$@" ;;
+    prepare-customers) cmd_prepare_customers "$@" ;;
     prepare-revdata) cmd_prepare_data "$@" ;;
     run-analytics) cmd_analytics "$@" ;;
     gen-reports) cmd_reports "$@" ;;
