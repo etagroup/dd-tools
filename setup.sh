@@ -8,7 +8,7 @@ fi
 
 source venv/bin/activate
 echo "Installing dependencies..."
-pip install --quiet pandas openpyxl numpy
+pip install --quiet pandas openpyxl numpy matplotlib
 
 echo ""
 echo "Setup complete. Activate with:"

@@ -15,6 +15,7 @@ The analysis is split into three phases:
 1. **Preparation** (`prepare.py`) - Monthly task when books close
 2. **Analytics** (`analytics.py`) - Run as needed
 3. **Reporting** (`customer_churn_report.py`, `customer_segment_matrix.py`) - Run frequently
+4. **Visualization** (`visualize.py`) - Generate charts
 
 ```
 Raw Input Excel
@@ -35,6 +36,11 @@ Raw Input Excel
 │    Reports      │ ──► Console output
 │ - churn_report  │
 │ - segment_matrix│
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│  visualize.py   │ ──► PNG charts
 └─────────────────┘
 ```
 
@@ -43,10 +49,10 @@ Raw Input Excel
 ```bash
 ./setup.sh
 # or manually:
-pip install pandas openpyxl numpy
+pip install pandas openpyxl numpy matplotlib
 ```
 
-**Requirements:** Python 3.7+, pandas, openpyxl, numpy
+**Requirements:** Python 3.7+, pandas, openpyxl, numpy, matplotlib
 
 ## Input Data Format
 
@@ -133,6 +139,17 @@ python src/customer_churn_report.py customer_analytics.xlsx
 # Customer segment matrix (3x2: Status x Value)
 python src/customer_segment_matrix.py customer_analytics.xlsx
 ```
+
+### Step 6: Generate Visualizations
+
+```bash
+python src/visualize.py customer_analytics.xlsx --output-dir ./charts
+```
+
+Generates:
+- `pareto_curve.png` - Revenue concentration (80/20 analysis)
+- `concentration_trend.png` - Top customer share over time
+- `segment_heatmap.png` - Customer segment matrix visualization
 
 ## File Outputs
 
