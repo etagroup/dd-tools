@@ -27,10 +27,10 @@ EOF
 
 show_prepare_customer_help() {
     cat <<EOF
-Usage: ./run.sh prepare-customer --data <file> [options]
+Usage: ./run.sh prepare-customer --input <file> [options]
 
 Options:
-  --data <file>      Raw revenue Excel file (required)
+  --input <file>     Raw revenue Excel file (required)
   --current <file>   Existing customer master to update
   --merge            Auto-apply HIGH confidence consolidations
   --nomerge          Just flag duplicates (default)
@@ -41,11 +41,11 @@ EOF
 }
 
 cmd_prepare_customer() {
-    local data="" current="" outdir="." merge_flag=""
+    local input="" current="" outdir="." merge_flag=""
 
     while [[ $# -gt 0 ]]; do
         case $1 in
-            --data) [ -z "${2:-}" ] && echo "Error: --data requires a value" && echo "" && show_prepare_customer_help && exit 1; data="$2"; shift 2 ;;
+            --input) [ -z "${2:-}" ] && echo "Error: --input requires a value" && echo "" && show_prepare_customer_help && exit 1; input="$2"; shift 2 ;;
             --current) [ -z "${2:-}" ] && echo "Error: --current requires a value" && echo "" && show_prepare_customer_help && exit 1; current="$2"; shift 2 ;;
             --merge) merge_flag="--merge"; shift ;;
             --nomerge) merge_flag=""; shift ;;
@@ -55,8 +55,8 @@ cmd_prepare_customer() {
         esac
     done
 
-    if [ -z "$data" ]; then
-        echo "Error: --data is required"
+    if [ -z "$input" ]; then
+        echo "Error: --input is required"
         echo ""
         show_prepare_customer_help
         exit 1
@@ -66,12 +66,12 @@ cmd_prepare_customer() {
 
     mkdir -p "$outdir"
 
-    args=(--input "$data" --output "$output")
+    args=(--input "$input" --output "$output")
     [ -n "$current" ] && args+=(--master "$current")
     [ -n "$merge_flag" ] && args+=($merge_flag)
 
     echo "Creating customer master..."
-    echo "  Input: $data"
+    echo "  Input: $input"
     [ -n "$current" ] && echo "  Current master: $current"
     echo "  Output: $output"
 
@@ -80,10 +80,10 @@ cmd_prepare_customer() {
 
 show_prepare_revdata_help() {
     cat <<EOF
-Usage: ./run.sh prepare-revdata --data <file> [options]
+Usage: ./run.sh prepare-revdata --input <file> [options]
 
 Options:
-  --data <file>      Raw revenue Excel file (required)
+  --input <file>     Raw revenue Excel file (required)
   --customer <file>  Customer master to apply (auto-detects if not specified)
   --outdir <dir>     Output directory (default: current dir)
 
@@ -92,11 +92,11 @@ EOF
 }
 
 cmd_prepare_data() {
-    local data="" customer="" outdir="."
+    local input="" customer="" outdir="."
 
     while [[ $# -gt 0 ]]; do
         case $1 in
-            --data) [ -z "${2:-}" ] && echo "Error: --data requires a value" && echo "" && show_prepare_revdata_help && exit 1; data="$2"; shift 2 ;;
+            --input) [ -z "${2:-}" ] && echo "Error: --input requires a value" && echo "" && show_prepare_revdata_help && exit 1; input="$2"; shift 2 ;;
             --customer) [ -z "${2:-}" ] && echo "Error: --customer requires a value" && echo "" && show_prepare_revdata_help && exit 1; customer="$2"; shift 2 ;;
             --outdir) [ -z "${2:-}" ] && echo "Error: --outdir requires a value" && echo "" && show_prepare_revdata_help && exit 1; outdir="$2"; shift 2 ;;
             --help) show_prepare_revdata_help; exit 0 ;;
@@ -104,8 +104,8 @@ cmd_prepare_data() {
         esac
     done
 
-    if [ -z "$data" ]; then
-        echo "Error: --data is required"
+    if [ -z "$input" ]; then
+        echo "Error: --input is required"
         echo ""
         show_prepare_revdata_help
         exit 1
@@ -124,11 +124,11 @@ cmd_prepare_data() {
 
     mkdir -p "$outdir"
 
-    args=(--input "$data" --output "$output")
+    args=(--input "$input" --output "$output")
     [ -n "$customer" ] && args+=(--master "$customer")
 
     echo "Preparing data..."
-    echo "  Input: $data"
+    echo "  Input: $input"
     [ -n "$customer" ] && echo "  Customer master: $customer"
     echo "  Output: $output"
 
