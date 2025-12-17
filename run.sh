@@ -84,7 +84,7 @@ Usage: ./run.sh prepare-revdata --input <file> [options]
 
 Options:
   --input <file>     Raw revenue Excel file (required)
-  --customer <file>  Customer master to apply (auto-detects if not specified)
+  --customers <file> Customer master to apply (auto-detects if not specified)
   --outdir <dir>     Output directory (default: current dir)
 
 Output: {outdir}/revdata.xlsx
@@ -92,12 +92,12 @@ EOF
 }
 
 cmd_prepare_data() {
-    local input="" customer="" outdir="."
+    local input="" customers="" outdir="."
 
     while [[ $# -gt 0 ]]; do
         case $1 in
             --input) [ -z "${2:-}" ] && echo "Error: --input requires a value" && echo "" && show_prepare_revdata_help && exit 1; input="$2"; shift 2 ;;
-            --customer) [ -z "${2:-}" ] && echo "Error: --customer requires a value" && echo "" && show_prepare_revdata_help && exit 1; customer="$2"; shift 2 ;;
+            --customers) [ -z "${2:-}" ] && echo "Error: --customers requires a value" && echo "" && show_prepare_revdata_help && exit 1; customers="$2"; shift 2 ;;
             --outdir) [ -z "${2:-}" ] && echo "Error: --outdir requires a value" && echo "" && show_prepare_revdata_help && exit 1; outdir="$2"; shift 2 ;;
             --help) show_prepare_revdata_help; exit 0 ;;
             *) echo "Unknown option: $1"; echo ""; show_prepare_revdata_help; exit 1 ;;
@@ -114,22 +114,22 @@ cmd_prepare_data() {
     output="$outdir/revdata.xlsx"
 
     # Auto-detect customer master if not specified
-    if [ -z "$customer" ]; then
-        auto_customer="$outdir/customers.xlsx"
-        if [ -f "$auto_customer" ]; then
-            customer="$auto_customer"
-            echo "Auto-detected customer master: $customer"
+    if [ -z "$customers" ]; then
+        auto_customers="$outdir/customers.xlsx"
+        if [ -f "$auto_customers" ]; then
+            customers="$auto_customers"
+            echo "Auto-detected customer master: $customers"
         fi
     fi
 
     mkdir -p "$outdir"
 
     args=(--input "$input" --output "$output")
-    [ -n "$customer" ] && args+=(--master "$customer")
+    [ -n "$customers" ] && args+=(--master "$customers")
 
     echo "Preparing data..."
     echo "  Input: $input"
-    [ -n "$customer" ] && echo "  Customer master: $customer"
+    [ -n "$customers" ] && echo "  Customer master: $customers"
     echo "  Output: $output"
 
     python "$SRC_DIR/prepare.py" "${args[@]}" --data-only
