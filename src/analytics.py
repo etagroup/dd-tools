@@ -14,11 +14,39 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import zipfile
+from io import BytesIO
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 import pandas as pd
+
+# Fixed core.xml for reproducible Excel output
+_FIXED_CORE_XML = b'''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:creator>openpyxl</dc:creator><dcterms:created xsi:type="dcterms:W3CDTF">2020-01-01T00:00:00Z</dcterms:created><dcterms:modified xsi:type="dcterms:W3CDTF">2020-01-01T00:00:00Z</dcterms:modified></cp:coreProperties>'''
+
+
+def _make_xlsx_deterministic(file_path: Path) -> None:
+    """Rewrite xlsx file with fixed metadata for reproducible output."""
+    with open(file_path, 'rb') as f:
+        data = BytesIO(f.read())
+
+    with zipfile.ZipFile(data, 'r') as zf_in:
+        file_list = zf_in.namelist()
+        contents = {name: zf_in.read(name) for name in file_list}
+
+    # Replace core.xml with fixed version
+    contents['docProps/core.xml'] = _FIXED_CORE_XML
+
+    # Fixed timestamp for zip entries (2020-01-01 00:00:00)
+    fixed_date_time = (2020, 1, 1, 0, 0, 0)
+
+    with zipfile.ZipFile(file_path, 'w', zipfile.ZIP_DEFLATED) as zf_out:
+        for name in sorted(file_list):  # Sort for deterministic order
+            info = zipfile.ZipInfo(name, date_time=fixed_date_time)
+            info.compress_type = zipfile.ZIP_DEFLATED
+            zf_out.writestr(info, contents[name])
 
 
 # -----------------------------------------------------------------------------
@@ -332,13 +360,12 @@ def write_analytics_workbook(
     top25_ttm = cust_summary.sort_values("ttm_revenue_last", ascending=False).head(25)
     top25_peak = cust_summary.sort_values("peak_ttm_share", ascending=False).head(25)
 
-    # Metadata for reports
+    # Metadata for reports (no timestamp for reproducible output)
     metadata = pd.DataFrame({
-        "property": ["data_start_date", "data_end_date", "generated_at"],
+        "property": ["data_start_date", "data_end_date"],
         "value": [
             data_start.strftime("%Y-%m-%d"),
             data_end.strftime("%Y-%m-%d"),
-            pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S")
         ]
     })
 
@@ -370,6 +397,7 @@ def write_analytics_workbook(
         top25_peak.to_excel(writer, sheet_name="Top25_PeakTTMShare", index=False)
         _format_excel(writer, "Top25_PeakTTMShare", top25_peak)
 
+    _make_xlsx_deterministic(output_path)
     print(f"Wrote analytics workbook: {output_path}")
 
 
