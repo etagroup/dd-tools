@@ -1,0 +1,12 @@
+# Customer analysis configuration
+
+high_value:
+  # Customer is "high value" if EITHER condition is met:
+  lifetime_revenue_min: 1000000    # Lifetime revenue >= $1M
+  peak_ttm_share_min: 0.02         # Peak TTM share >= 2%
+
+status:
+  # Months since last purchase thresholds
+  active_max: 6          # Active: <= 6 months
+  inactive_max: 18       # Inactive: 7-18 months
+                         # Churned: > 18 months

@@ -5,6 +5,8 @@ import argparse
 import sys
 import pandas as pd
 
+from config import get_high_value_thresholds, get_status_thresholds
+
 
 def build_segment_matrix(input_file: str) -> tuple:
     """
@@ -15,6 +17,10 @@ def build_segment_matrix(input_file: str) -> tuple:
 
     Returns: (counts, revenue, data_start, data_end)
     """
+    # Load thresholds from config
+    ltv_min, share_min = get_high_value_thresholds()
+    active_max, inactive_max = get_status_thresholds()
+
     # Read Customer_Summary sheet
     df = pd.read_excel(input_file, sheet_name="Customer_Summary")
 
@@ -29,13 +35,19 @@ def build_segment_matrix(input_file: str) -> tuple:
     df['last_purchase_month'] = pd.to_datetime(df['last_purchase_month'])
     df['months_since_last_purchase_calc'] = ((reference_date - df['last_purchase_month']).dt.days / 30.44).round(0)
 
-    # Recalculate status
-    df['status_calc'] = df['months_since_last_purchase_calc'].apply(
-        lambda x: 'Active' if x <= 6 else ('Inactive' if x <= 18 else 'Churned')
-    )
+    # Recalculate status using config thresholds
+    def calc_status(months):
+        if months <= active_max:
+            return 'Active'
+        elif months <= inactive_max:
+            return 'Inactive'
+        else:
+            return 'Churned'
 
-    # Recalculate is_high_value
-    df['is_high_value_calc'] = (df['lifetime_revenue'] >= 1_000_000) | (df['peak_ttm_share'] >= 0.02)
+    df['status_calc'] = df['months_since_last_purchase_calc'].apply(calc_status)
+
+    # Recalculate is_high_value using config thresholds
+    df['is_high_value_calc'] = (df['lifetime_revenue'] >= ltv_min) | (df['peak_ttm_share'] >= share_min)
 
     # Create cross-tabulation for counts
     counts = pd.crosstab(

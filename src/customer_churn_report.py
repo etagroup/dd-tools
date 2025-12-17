@@ -5,6 +5,8 @@ import argparse
 import sys
 import pandas as pd
 
+from config import get_high_value_thresholds, get_status_thresholds
+
 
 def format_currency(val):
     """Format value as currency (millions)."""
@@ -16,7 +18,7 @@ def format_currency(val):
         return f'${val/1_000:,.0f}K'
 
 
-def generate_section(df, title, subtitle, data_start, data_end):
+def generate_section(df, title, subtitle, data_start, data_end, active_max=6, inactive_max=18):
     """Generate report lines for a subset of customers."""
     lines = []
     if len(df) == 0:
@@ -36,9 +38,9 @@ def generate_section(df, title, subtitle, data_start, data_end):
     lines.append("=" * 72)
 
     status_descriptions = {
-        'Active': 'Last purchase within 6 months',
-        'Inactive': 'Last purchase 7-18 months ago',
-        'Churned': 'Last purchase over 18 months ago',
+        'Active': f'Last purchase within {active_max} months',
+        'Inactive': f'Last purchase {active_max + 1}-{inactive_max} months ago',
+        'Churned': f'Last purchase over {inactive_max} months ago',
     }
 
     for status in ['Active', 'Inactive', 'Churned']:
@@ -99,6 +101,10 @@ def write_pdf(lines, output_path):
 
 
 def main(input_file: str, filter_type: str, pdf_output: str = None):
+    # Load thresholds from config
+    ltv_min, share_min = get_high_value_thresholds()
+    active_max, inactive_max = get_status_thresholds()
+
     # Read Customer_Summary sheet
     df = pd.read_excel(input_file, sheet_name="Customer_Summary")
 
@@ -113,45 +119,57 @@ def main(input_file: str, filter_type: str, pdf_output: str = None):
     df['last_purchase_month'] = pd.to_datetime(df['last_purchase_month'])
     df['months_since'] = ((reference_date - df['last_purchase_month']).dt.days / 30.44).round(0)
 
-    # Calculate status
-    df['status'] = df['months_since'].apply(
-        lambda x: 'Active' if x <= 6 else ('Inactive' if x <= 18 else 'Churned')
-    )
+    # Calculate status using config thresholds
+    def calc_status(months):
+        if months <= active_max:
+            return 'Active'
+        elif months <= inactive_max:
+            return 'Inactive'
+        else:
+            return 'Churned'
 
-    # Calculate is_high_value
-    df['is_high_value'] = (df['lifetime_revenue'] >= 1_000_000) | (df['peak_ttm_share'] >= 0.02)
+    df['status'] = df['months_since'].apply(calc_status)
+
+    # Calculate is_high_value using config thresholds
+    df['is_high_value'] = (df['lifetime_revenue'] >= ltv_min) | (df['peak_ttm_share'] >= share_min)
 
     # Filter based on filter_type
     high_value_df = df[df['is_high_value']]
     low_value_df = df[~df['is_high_value']]
+
+    # Build subtitle with actual thresholds
+    ltv_fmt = f"${ltv_min/1_000_000:.0f}M" if ltv_min >= 1_000_000 else f"${ltv_min/1_000:.0f}K"
+    share_fmt = f"{share_min*100:.0f}%"
+    hv_subtitle = f"Lifetime >= {ltv_fmt} OR Peak TTM Share >= {share_fmt}"
+    other_subtitle = f"Lifetime < {ltv_fmt} AND Peak TTM Share < {share_fmt}"
 
     lines = []
     if filter_type == 'high-value':
         lines.extend(generate_section(
             high_value_df,
             "HIGH VALUE CUSTOMERS",
-            "Lifetime >= $1M OR Peak TTM Share >= 2%",
-            data_start, data_end
+            hv_subtitle,
+            data_start, data_end, active_max, inactive_max
         ))
     elif filter_type == 'low-value':
         lines.extend(generate_section(
             low_value_df,
             "OTHER CUSTOMERS",
-            "Lifetime < $1M AND Peak TTM Share < 2%",
-            data_start, data_end
+            other_subtitle,
+            data_start, data_end, active_max, inactive_max
         ))
     elif filter_type == 'all':
         lines.extend(generate_section(
             high_value_df,
             "HIGH VALUE CUSTOMERS",
-            "Lifetime >= $1M OR Peak TTM Share >= 2%",
-            data_start, data_end
+            hv_subtitle,
+            data_start, data_end, active_max, inactive_max
         ))
         lines.extend(generate_section(
             low_value_df,
             "OTHER CUSTOMERS",
-            "Lifetime < $1M AND Peak TTM Share < 2%",
-            data_start, data_end
+            other_subtitle,
+            data_start, data_end, active_max, inactive_max
         ))
 
     # Output

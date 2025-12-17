@@ -49,10 +49,10 @@ Raw Input Excel
 ```bash
 ./setup.sh
 # or manually:
-pip install pandas openpyxl numpy matplotlib fpdf2
+pip install pandas openpyxl numpy matplotlib fpdf2 pyyaml
 ```
 
-**Requirements:** Python 3.7+, pandas, openpyxl, numpy, matplotlib, fpdf2
+**Requirements:** Python 3.7+, pandas, openpyxl, numpy, matplotlib, fpdf2, pyyaml
 
 ## Input Data Format
 
@@ -199,6 +199,23 @@ Generates:
 - `status` - Active (≤6 months), Inactive (7-18), Churned (>18)
 - `is_high_value` - Lifetime ≥ $1M OR peak share ≥ 2%
 - `segment` - Strategic / High Value / Mid Value (Active customers only)
+
+## Configuration
+
+Thresholds for customer classification are defined in `etc/config.yaml`:
+
+```yaml
+high_value:
+  lifetime_revenue_min: 1000000    # Lifetime revenue >= $1M
+  peak_ttm_share_min: 0.02         # Peak TTM share >= 2%
+
+status:
+  active_max: 6          # Active: <= 6 months since last purchase
+  inactive_max: 18       # Inactive: 7-18 months
+                         # Churned: > 18 months
+```
+
+Edit this file to adjust thresholds without modifying code.
 
 ## Tips
 
