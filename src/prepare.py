@@ -17,13 +17,43 @@ from __future__ import annotations
 import argparse
 import math
 import re
+import zipfile
 from dataclasses import dataclass
+from datetime import datetime
 from difflib import SequenceMatcher
+from io import BytesIO
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 import pandas as pd
+
+# Fixed timestamp for reproducible Excel output
+_FIXED_TIMESTAMP = datetime(2020, 1, 1)
+_FIXED_CORE_XML = b'''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:creator>openpyxl</dc:creator><dcterms:created xsi:type="dcterms:W3CDTF">2020-01-01T00:00:00Z</dcterms:created><dcterms:modified xsi:type="dcterms:W3CDTF">2020-01-01T00:00:00Z</dcterms:modified></cp:coreProperties>'''
+
+
+def _make_xlsx_deterministic(file_path: Path) -> None:
+    """Rewrite xlsx file with fixed metadata for reproducible output."""
+    with open(file_path, 'rb') as f:
+        data = BytesIO(f.read())
+
+    with zipfile.ZipFile(data, 'r') as zf_in:
+        file_list = zf_in.namelist()
+        contents = {name: zf_in.read(name) for name in file_list}
+
+    # Replace core.xml with fixed version
+    contents['docProps/core.xml'] = _FIXED_CORE_XML
+
+    # Fixed timestamp for zip entries (2020-01-01 00:00:00)
+    fixed_date_time = (2020, 1, 1, 0, 0, 0)
+
+    with zipfile.ZipFile(file_path, 'w', zipfile.ZIP_DEFLATED) as zf_out:
+        for name in sorted(file_list):  # Sort for deterministic order
+            info = zipfile.ZipInfo(name, date_time=fixed_date_time)
+            info.compress_type = zipfile.ZIP_DEFLATED
+            zf_out.writestr(info, contents[name])
 
 
 MONTH_MAP: Dict[str, int] = {
@@ -497,6 +527,7 @@ def write_prepared_file(df_long: pd.DataFrame, output_path: Path) -> None:
         df_output.to_excel(writer, sheet_name="Revenue_Detail", index=False)
         _format_excel(writer, "Revenue_Detail", df_output)
 
+    _make_xlsx_deterministic(output_path)
     print(f"Wrote prepared data: {output_path}")
 
 
@@ -508,6 +539,7 @@ def write_customer_master_file(master_df: pd.DataFrame, output_path: Path) -> No
         master_df.to_excel(writer, sheet_name="Customer_Master", index=False)
         _format_excel(writer, "Customer_Master", master_df)
 
+    _make_xlsx_deterministic(output_path)
     print(f"Wrote customer master: {output_path}")
 
 
