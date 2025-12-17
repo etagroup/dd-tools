@@ -526,6 +526,17 @@ def derive_output_paths(input_path: Path) -> Tuple[Path, Path]:
     return prepared_path, customers_path
 
 
+def auto_merge_high_confidence(master_df: pd.DataFrame) -> pd.DataFrame:
+    """Auto-apply HIGH confidence consolidation suggestions."""
+    master_df = master_df.copy()
+
+    for idx, row in master_df.iterrows():
+        if row.get("confidence") == "HIGH" and pd.notna(row.get("suggested_consolidation")):
+            master_df.at[idx, "customer_master"] = row["suggested_consolidation"]
+
+    return master_df
+
+
 def main(argv: Optional[Sequence[str]] = None) -> int:
     parser = argparse.ArgumentParser(
         description="Prepare customer revenue data for analysis."
@@ -535,17 +546,54 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         help="Path to the source Excel file (month-wise customer revenue)."
     )
     parser.add_argument(
+        "--output",
+        help="Path for output file (derived from input if not specified)."
+    )
+    parser.add_argument(
         "--master",
         help="Path to existing customer master file to carry forward mappings."
     )
+    parser.add_argument(
+        "--customers-only", action="store_true",
+        help="Only generate customer master file (skip prepared data)."
+    )
+    parser.add_argument(
+        "--data-only", action="store_true",
+        help="Only generate prepared data file (skip customer master)."
+    )
+    parser.add_argument(
+        "--merge", action="store_true",
+        help="Auto-apply HIGH confidence consolidation suggestions."
+    )
     args = parser.parse_args(argv)
+
+    if args.customers_only and args.data_only:
+        print("Error: Cannot specify both --customers-only and --data-only")
+        return 1
 
     input_path = Path(args.input).expanduser().resolve()
     if not input_path.exists():
         raise FileNotFoundError(f"Input file not found: {input_path}")
 
-    # Derive output paths from input filename
-    prepared_path, customers_path = derive_output_paths(input_path)
+    # Determine output path(s)
+    if args.output:
+        output_path = Path(args.output).expanduser().resolve()
+        if args.customers_only:
+            customers_path = output_path
+            prepared_path = None
+        elif args.data_only:
+            prepared_path = output_path
+            customers_path = None
+        else:
+            # If --output specified without mode, treat as prepared path
+            prepared_path = output_path
+            customers_path = output_path.parent / f"{output_path.stem.replace('.prepared', '')}.customers.xlsx"
+    else:
+        prepared_path, customers_path = derive_output_paths(input_path)
+        if args.customers_only:
+            prepared_path = None
+        elif args.data_only:
+            customers_path = None
 
     # Load existing master if provided
     existing_master = None
@@ -561,22 +609,33 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     df_long = load_monthly_customer_revenue(input_path)
     print(f"  Loaded {len(df_long)} revenue records, {df_long['customer'].nunique()} unique customers")
 
-    # Generate customer master (with existing mappings if provided)
-    master_df = generate_customer_master(df_long, existing_master)
+    # Generate customer master if needed
+    master_df = None
+    if not args.data_only:
+        master_df = generate_customer_master(df_long, existing_master)
 
-    # Apply mappings to consolidate customers
-    if existing_master is not None:
-        df_long = apply_customer_master(df_long, existing_master)
+        # Auto-merge if requested
+        if args.merge:
+            master_df = auto_merge_high_confidence(master_df)
+            print("  Applied HIGH confidence consolidations")
+
+    # Apply mappings to consolidate customers (use existing master or newly generated one)
+    mapping_source = existing_master if existing_master is not None else master_df
+    if mapping_source is not None and not args.customers_only:
+        df_long = apply_customer_master(df_long, mapping_source)
         print(f"  Applied mappings, now {df_long['customer'].nunique()} unique customers")
 
     # Write outputs
-    write_prepared_file(df_long, prepared_path)
-    write_customer_master_file(master_df, customers_path)
+    if prepared_path:
+        write_prepared_file(df_long, prepared_path)
 
-    # Summary
-    new_customers = master_df[master_df["is_new"] == True]["customer_normalized"].nunique()
-    if new_customers > 0:
-        print(f"\nNote: {new_customers} new customer(s) added to master for review")
+    if customers_path and master_df is not None:
+        write_customer_master_file(master_df, customers_path)
+
+        # Summary
+        new_customers = master_df[master_df["is_new"] == True]["customer_normalized"].nunique()
+        if new_customers > 0:
+            print(f"\nNote: {new_customers} new customer(s) added to master for review")
 
     return 0
 
