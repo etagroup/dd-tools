@@ -424,9 +424,9 @@ def generate_customer_master(
     if len(without_duplicates) > 0:
         without_duplicates = without_duplicates.sort_values(["is_new", "customer_normalized"], ascending=[False, True])
 
-    # Combine with separator
+    # Combine with separator (use empty strings to avoid FutureWarning about all-NA concat)
     separator_rows = pd.DataFrame(
-        [[None] * len(master_df.columns)] * 3,
+        [[""] * len(master_df.columns)] * 3,
         columns=master_df.columns
     )
 
