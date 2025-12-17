@@ -137,10 +137,10 @@ cmd_prepare_data() {
 
 show_analytics_help() {
     cat <<EOF
-Usage: ./run.sh run-analytics --prepared <file> [options]
+Usage: ./run.sh run-analytics --revdata <file> [options]
 
 Options:
-  --prepared <file>  Prepared data file (required)
+  --revdata <file>   Prepared revenue data file (required)
   --outdir <dir>     Output directory (default: current dir)
 
 Output: {outdir}/analytics.xlsx
@@ -148,19 +148,19 @@ EOF
 }
 
 cmd_analytics() {
-    local prepared="" outdir="."
+    local revdata="" outdir="."
 
     while [[ $# -gt 0 ]]; do
         case $1 in
-            --prepared) [ -z "${2:-}" ] && echo "Error: --prepared requires a value" && echo "" && show_analytics_help && exit 1; prepared="$2"; shift 2 ;;
+            --revdata) [ -z "${2:-}" ] && echo "Error: --revdata requires a value" && echo "" && show_analytics_help && exit 1; revdata="$2"; shift 2 ;;
             --outdir) [ -z "${2:-}" ] && echo "Error: --outdir requires a value" && echo "" && show_analytics_help && exit 1; outdir="$2"; shift 2 ;;
             --help) show_analytics_help; exit 0 ;;
             *) echo "Unknown option: $1"; echo ""; show_analytics_help; exit 1 ;;
         esac
     done
 
-    if [ -z "$prepared" ]; then
-        echo "Error: --prepared is required"
+    if [ -z "$revdata" ]; then
+        echo "Error: --revdata is required"
         echo ""
         show_analytics_help
         exit 1
@@ -171,10 +171,10 @@ cmd_analytics() {
     mkdir -p "$outdir"
 
     echo "Generating analytics..."
-    echo "  Input: $prepared"
+    echo "  Input: $revdata"
     echo "  Output: $output"
 
-    python "$SRC_DIR/analytics.py" --input "$prepared" --output "$output"
+    python "$SRC_DIR/analytics.py" --input "$revdata" --output "$output"
 }
 
 show_reports_help() {
