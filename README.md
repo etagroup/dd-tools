@@ -49,10 +49,10 @@ Raw Input Excel
 ```bash
 ./setup.sh
 # or manually:
-pip install pandas openpyxl numpy matplotlib
+pip install pandas openpyxl numpy matplotlib fpdf2
 ```
 
-**Requirements:** Python 3.7+, pandas, openpyxl, numpy, matplotlib
+**Requirements:** Python 3.7+, pandas, openpyxl, numpy, matplotlib, fpdf2
 
 ## Input Data Format
 
@@ -138,6 +138,9 @@ python src/customer_churn_report.py customer_analytics.xlsx
 
 # Customer segment matrix (3x2: Status x Value)
 python src/customer_segment_matrix.py customer_analytics.xlsx
+
+# PDF output (add --pdf flag to any report)
+python src/customer_churn_report.py customer_analytics.xlsx --pdf churn_report.pdf
 ```
 
 ### Step 6: Generate Visualizations
