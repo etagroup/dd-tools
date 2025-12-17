@@ -7,41 +7,47 @@ Analyzes customer purchase patterns from monthly revenue data, focusing on **rep
 - Manual consolidation workflow via editable Excel file
 - Rolling concentration metrics (TTM, 24M, 36M)
 - Customer-level behavioral metrics (tenure, gaps, reactivations)
+- Reproducible output (deterministic checksums)
+
+## Quick Start
+
+```bash
+# Setup
+./setup.sh
+
+# Run full pipeline
+./run.sh all --input "Monthly Revenue.xlsx" --outdir output/
+
+# With reports and charts
+./run.sh all --input "Monthly Revenue.xlsx" --outdir output/ --reports --charts
+```
 
 ## Architecture
-
-The analysis is split into three phases:
-
-1. **Preparation** (`prepare.py`) - Monthly task when books close
-2. **Analytics** (`analytics.py`) - Run as needed
-3. **Reporting** (`customer_churn_report.py`, `customer_segment_matrix.py`) - Run frequently
-4. **Visualization** (`visualize.py`) - Generate charts
 
 ```
 Raw Input Excel
       │
       ▼
 ┌─────────────────┐
-│   prepare.py    │ ──► {basename}.prepared.xlsx
-│                 │ ──► {basename}.customers.xlsx
+│ prepare-customers│ ──► customers.xlsx
 └────────┬────────┘
          │
          ▼
 ┌─────────────────┐
-│  analytics.py   │ ──► customer_analytics.xlsx
+│ prepare-revdata │ ──► revdata.xlsx
 └────────┬────────┘
          │
          ▼
 ┌─────────────────┐
-│    Reports      │ ──► Console output
-│ - churn_report  │
-│ - segment_matrix│
+│  run-analytics  │ ──► analytics.xlsx
 └────────┬────────┘
          │
-         ▼
-┌─────────────────┐
-│  visualize.py   │ ──► PNG charts
-└─────────────────┘
+    ┌────┴────┐
+    ▼         ▼
+┌────────┐ ┌────────┐
+│reports │ │ charts │
+│ (PDF)  │ │ (PNG)  │
+└────────┘ └────────┘
 ```
 
 ## Setup
@@ -52,7 +58,104 @@ Raw Input Excel
 pip install pandas openpyxl numpy matplotlib fpdf2 pyyaml
 ```
 
-**Requirements:** Python 3.7+, pandas, openpyxl, numpy, matplotlib, fpdf2, pyyaml
+**Requirements:** Python 3.7+
+
+## CLI Reference
+
+```bash
+./run.sh <command> [options]
+
+Commands:
+  all               Run full pipeline (prepare → analytics)
+  prepare-customers Create/update customer master from revenue data
+  prepare-revdata   Flatten revenue data and apply customer mappings
+  run-analytics     Generate analytics workbook from prepared data
+  gen-reports       Generate console or PDF reports
+  gen-charts        Generate PNG visualizations
+
+Run './run.sh <command> --help' for command-specific options.
+```
+
+### all - Full Pipeline
+
+```bash
+./run.sh all --input <file> [options]
+
+Options:
+  --input <file>     Raw revenue Excel file (required)
+  --existing <file>  Existing customer master (auto-detects {outdir}/customers.xlsx)
+  --outdir <dir>     Output directory (default: current dir)
+  --merge            Auto-apply HIGH confidence consolidations
+  --reports          Also generate PDF reports
+  --charts           Also generate PNG charts
+```
+
+### prepare-customers
+
+```bash
+./run.sh prepare-customers --input <file> [options]
+
+Options:
+  --input <file>     Raw revenue Excel file (required)
+  --existing <file>  Existing customer master to update
+  --merge            Auto-apply HIGH confidence consolidations
+  --outdir <dir>     Output directory (default: current dir)
+
+Output: {outdir}/customers.xlsx
+```
+
+### prepare-revdata
+
+```bash
+./run.sh prepare-revdata --input <file> [options]
+
+Options:
+  --input <file>     Raw revenue Excel file (required)
+  --customers <file> Customer master to apply (auto-detects if not specified)
+  --outdir <dir>     Output directory (default: current dir)
+
+Output: {outdir}/revdata.xlsx
+```
+
+### run-analytics
+
+```bash
+./run.sh run-analytics --revdata <file> [options]
+
+Options:
+  --revdata <file>   Prepared revenue data file (required)
+  --outdir <dir>     Output directory (default: current dir)
+
+Output: {outdir}/analytics.xlsx
+```
+
+### gen-reports
+
+```bash
+./run.sh gen-reports --analytics <file> [options]
+
+Options:
+  --analytics <file>  Analytics workbook (required)
+  --outdir <dir>      Output directory for PDFs (default: current dir)
+  --pdf               Generate PDF files instead of console output
+  --all               Show all customers (high-value and other)
+  --high-value        Show high-value customers only (default)
+  --low-value         Show low-value customers only
+
+Output (with --pdf): {outdir}/churn_report.pdf, {outdir}/segment_matrix.pdf
+```
+
+### gen-charts
+
+```bash
+./run.sh gen-charts --analytics <file> [options]
+
+Options:
+  --analytics <file>  Analytics workbook (required)
+  --outdir <dir>      Output directory (default: ./charts)
+
+Output: pareto_curve.png, concentration_trend.png, segment_heatmap.png
+```
 
 ## Input Data Format
 
@@ -63,115 +166,59 @@ pip install pandas openpyxl numpy matplotlib fpdf2 pyyaml
 
 ## Workflow
 
-### Step 1: Prepare Data
+### First Run
 
 ```bash
-python src/prepare.py --input "path/to/Monthly Customer Revenue.xlsx"
+./run.sh all --input "Monthly Revenue.xlsx" --outdir output/
 ```
 
-**Output files** (derived from input filename):
-- `{basename}.prepared.xlsx` - Flattened revenue data (Revenue_Detail sheet)
-- `{basename}.customers.xlsx` - Customer master for duplicate consolidation
+### Review Duplicates
 
-### Step 2: Review and Consolidate Duplicates
+Open `output/customers.xlsx` in Excel. The file has two sections:
 
-Open the `.customers.xlsx` file in Excel. The file is organized into two sections:
+**Section 1: Potential Duplicates** (top)
+- Review `confidence` column: HIGH, MEDIUM, LOW
+- Edit `customer_master` column to consolidate duplicates
 
-**Section 1: Potential Duplicates (Top of file)**
+**Section 2: No Duplicates** (below separator)
+- Alphabetically sorted for reference
 
-Customers with potential duplicates that need your review.
-
-Key columns:
-- `customer_normalized` - The current normalized name (**don't edit this**)
-- `customer_master` - **EDIT THIS COLUMN** to consolidate duplicates
-- `suggested_consolidation` - Recommended master name for HIGH confidence matches
-- `potential_duplicate` - What this customer might be a duplicate of
-- `confidence` - Match confidence level:
-  - **HIGH** - Very likely the same company (legal suffix variations, exact substring matches)
-  - **MEDIUM** - Probably related, review recommended
-  - **LOW** - Possibly related, manual review needed
-- `is_new` - TRUE if this customer is new (not in previous master)
-
-**Section 2: No Duplicates (Below separator)**
-
-Customers with no detected duplicates (alphabetically sorted for reference).
-
-**How to Consolidate:**
-
-To merge duplicates, edit the `customer_master` column to use the same name for both entries:
+**To consolidate duplicates**, set the same `customer_master` value for both entries:
 ```
-customer_normalized              customer_master                   confidence
-ACME                        →   ACME INC                         HIGH
-ACME INC                        ACME INC                         HIGH
+customer_normalized    customer_master    confidence
+ACME                   ACME INC           HIGH
+ACME INC               ACME INC           HIGH
 ```
 
-To keep separate, leave the `customer_master` column as-is.
-
-### Step 3: Re-run Preparation with Master
-
-After editing the customer master, re-run preparation to apply your consolidations:
+### Subsequent Runs
 
 ```bash
-python src/prepare.py \
-  --input "path/to/Monthly Customer Revenue.xlsx" \
-  --master "path/to/previous.customers.xlsx"
+# Auto-detects existing customers.xlsx in outdir
+./run.sh all --input "Monthly Revenue.xlsx" --outdir output/
+
+# Or specify explicitly
+./run.sh all --input "Monthly Revenue.xlsx" --outdir output/ --existing prev/customers.xlsx
 ```
 
-The script will:
-- Preserve your existing mappings
-- Mark new customers with `is_new = TRUE` for review
-- Apply consolidations to the prepared data
+## Output Files
 
-### Step 4: Generate Analytics
+| File | Description |
+|------|-------------|
+| `customers.xlsx` | Customer master with duplicate detection |
+| `revdata.xlsx` | Flattened revenue data (Revenue_Detail sheet) |
+| `analytics.xlsx` | Full analytics workbook (6 sheets) |
+| `churn_report.pdf` | Customer churn report by status |
+| `segment_matrix.pdf` | 3x2 customer segment matrix |
+| `*.png` | Visualization charts |
 
-```bash
-python src/analytics.py \
-  --input "path/to/data.prepared.xlsx" \
-  --output "customer_analytics.xlsx"
-```
+### Analytics Workbook Sheets
 
-### Step 5: Run Reports
-
-```bash
-# Customer churn report (--high-value default, or --low-value, --all)
-python src/customer_churn_report.py customer_analytics.xlsx
-
-# Customer segment matrix (3x2: Status x Value)
-python src/customer_segment_matrix.py customer_analytics.xlsx
-
-# PDF output (add --pdf flag to any report)
-python src/customer_churn_report.py customer_analytics.xlsx --pdf churn_report.pdf
-```
-
-### Step 6: Generate Visualizations
-
-```bash
-python src/visualize.py customer_analytics.xlsx --output-dir ./charts
-```
-
-Generates:
-- `pareto_curve.png` - Revenue concentration (80/20 analysis)
-- `concentration_trend.png` - Top customer share over time
-- `segment_heatmap.png` - Customer segment matrix visualization
-
-## File Outputs
-
-### Prepared Data (`{basename}.prepared.xlsx`)
-
-- **Revenue_Detail** - Flattened monthly revenue data (date, year, month, customer, revenue)
-
-### Customer Master (`{basename}.customers.xlsx`)
-
-- **Customer_Master** - All customers with duplicate detection results
-
-### Analytics Workbook
-
-1. **Metadata** - Data date range and generation timestamp
+1. **Metadata** - Data date range
 2. **Customer_Summary** - Customer-level metrics with segmentation formulas
 3. **Monthly_Matrix** - Pivot table of customers x months
-4. **Rolling_Concentration** - Time series of top customer concentration (TTM, 24M, 36M)
+4. **Rolling_Concentration** - Time series of top customer concentration
 5. **Top25_Lifetime** - Top 25 customers by lifetime revenue
-6. **Top25_TTM** - Top 25 customers by trailing twelve months revenue
+6. **Top25_TTM** - Top 25 customers by trailing twelve months
 7. **Top25_PeakTTMShare** - Top 25 customers by peak concentration
 
 ## Customer Summary Columns
@@ -196,13 +243,13 @@ Generates:
 
 **Segmentation (Formula-based):**
 - `months_since_last_purchase` - Months from last purchase to data end
-- `status` - Active (≤6 months), Inactive (7-18), Churned (>18)
-- `is_high_value` - Lifetime ≥ $1M OR peak share ≥ 2%
+- `status` - Active (<=6 months), Inactive (7-18), Churned (>18)
+- `is_high_value` - Lifetime >= $1M OR peak share >= 2%
 - `segment` - Strategic / High Value / Mid Value (Active customers only)
 
 ## Configuration
 
-Thresholds for customer classification are defined in `etc/config.yaml`:
+Thresholds are defined in `etc/config.yaml`:
 
 ```yaml
 high_value:
@@ -215,12 +262,11 @@ status:
                          # Churned: > 18 months
 ```
 
-Edit this file to adjust thresholds without modifying code.
-
 ## Tips
 
 - **Start with HIGH confidence matches** - These are almost always correct
 - **Review MEDIUM confidence** - Usually correct but worth verifying
 - **Be cautious with LOW confidence** - May be false positives
 - **Filter by is_new** - Focus on newly added customers each period
-- **Iterative approach** - You can re-run preparation multiple times, refining mappings
+- **Iterative approach** - Re-run as needed, refining mappings over time
+- **Use `--merge`** - Auto-apply HIGH confidence consolidations to save time
