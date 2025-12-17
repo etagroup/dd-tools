@@ -83,10 +83,13 @@ def generate_section(df, title, subtitle, data_start, data_end, active_max=6, in
 
 def write_pdf(lines, output_path):
     """Write report lines to PDF."""
+    from datetime import datetime, timezone
     from fpdf import FPDF
     from fpdf.enums import XPos, YPos
 
     pdf = FPDF()
+    # Fixed timestamp for reproducible output
+    pdf.creation_date = datetime(2020, 1, 1, tzinfo=timezone.utc)
     pdf.set_auto_page_break(auto=True, margin=15)
     pdf.add_page()
     pdf.set_font('Courier', size=9)
